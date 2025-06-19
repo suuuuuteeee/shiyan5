@@ -30,56 +30,82 @@ public class BookServlet extends HttpServlet {
         
         PrintWriter out = response.getWriter();
         
-        // 获取所有书籍数据
-        List<Book> books = getAllBooks();
-        
-        // 构建 JSON 响应
-        StringBuilder jsonBuilder = new StringBuilder();
-        jsonBuilder.append("{");
-        jsonBuilder.append("\"status\": \"success\",");
-        jsonBuilder.append("\"data\": [");
-        
-        for (int i = 0; i < books.size(); i++) {
-            Book book = books.get(i);
+        try {
+            // 获取所有书籍数据
+            List<Book> books = getAllBooks();
+
+            // 构建 JSON 响应
+            StringBuilder jsonBuilder = new StringBuilder();
             jsonBuilder.append("{");
-            jsonBuilder.append("\"id\": " + book.getId() + ",");
-            jsonBuilder.append("\"bookId\": \"" + book.getBookId() + "\",");
-            jsonBuilder.append("\"name\": \"" + book.getName() + "\",");
-            jsonBuilder.append("\"author\": \"" + book.getAuthor() + "\",");
-            jsonBuilder.append("\"publisherId\": " + book.getPublisherId() + ",");
-            jsonBuilder.append("\"publisherName\": \"" + book.getPublisherName() + "\",");
-            jsonBuilder.append("\"price\": " + book.getPrice() + ",");
-            jsonBuilder.append("\"description\": \"" + book.getDescription() + "\"");
+            jsonBuilder.append("\"status\": \"success\",");
+            jsonBuilder.append("\"data\": [");
+
+            for (int i = 0; i < books.size(); i++) {
+                Book book = books.get(i);
+                jsonBuilder.append("{");
+                jsonBuilder.append("\"id\": ").append(book.getId()).append(",");
+                jsonBuilder.append("\"bookId\": \"").append(book.getBookId()).append("\",");
+                jsonBuilder.append("\"name\": \"").append(book.getName()).append("\",");
+                jsonBuilder.append("\"author\": \"").append(book.getAuthor()).append("\",");
+                jsonBuilder.append("\"publisherId\": ").append(book.getPublisherId()).append(",");
+                jsonBuilder.append("\"publisherName\": \"").append(book.getPublisherName()).append("\",");
+                jsonBuilder.append("\"price\": ").append(book.getPrice()).append(",");
+                jsonBuilder.append("\"description\": \"").append(book.getDescription()).append("\"");
+                jsonBuilder.append("}");
+
+                if (i < books.size() - 1) {
+                    jsonBuilder.append(",");
+                }
+            }
+
+            jsonBuilder.append("]");
             jsonBuilder.append("}");
             
-            if (i < books.size() - 1) {
-                jsonBuilder.append(",");
+            out.print(jsonBuilder.toString());
+
+        } catch (RuntimeException e) {
+            // Log for server-side debugging, e.g., using a logging framework
+            e.printStackTrace();
+            // Inform the client about the error
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // Set HTTP status to 500
+            // Sanitize error message for client
+            String clientErrorMessage = "Failed to retrieve books due to a server error. Please try again later.";
+            if (e.getMessage() != null && e.getMessage().toLowerCase().contains("database driver not found")) {
+                clientErrorMessage = "Database driver not found. Please contact administrator.";
+            } else if (e.getMessage() != null && e.getMessage().toLowerCase().contains("failed to connect to database")) {
+                 clientErrorMessage = "Could not connect to the database. Please check server configuration.";
+            }
+            // Escape double quotes in the clientErrorMessage for valid JSON
+            out.print("{\"status\": \"error\", \"message\": \"" + clientErrorMessage.replace("\"", "\\\"") + "\"}");
+        } finally {
+            if (out != null) {
+                out.flush();
+                // out.close(); // Closing the writer is generally good practice, managed by servlet container
             }
         }
-        
-        jsonBuilder.append("]");
-        jsonBuilder.append("}");
-        
-        out.print(jsonBuilder.toString());
-        out.flush();
     }
 
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        // For this servlet, POST might not be conventionally used for fetching all books,
+        // but if it is, it should have similar error handling.
+        // Or, it could return a "Method Not Allowed" error.
+        // Original just called doGet. Let's keep that but be mindful.
         doGet(request, response);
     }
     
     /**
      * 获取所有书籍数据
+     * This method will now propagate RuntimeException from DBUtil.getConnection()
      */
-    private List<Book> getAllBooks() {
+    private List<Book> getAllBooks() { // Consider adding "throws SQLException, RuntimeException" if not caught inside
         List<Book> books = new ArrayList<>();
         Connection conn = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
         
         try {
-            conn = DBUtil.getConnection();
+            conn = DBUtil.getConnection(); // This can now throw RuntimeException
             String sql = "SELECT b.id, b.book_id, b.name, b.author, b.publisher_id, p.name as publisher_name, "
                     + "b.price, b.description FROM books b "
                     + "LEFT JOIN publishers p ON b.publisher_id = p.id";
@@ -99,8 +125,19 @@ public class BookServlet extends HttpServlet {
                 books.add(book);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-        } finally {
+            // This catch block is for SQLExceptions from prepareStatement, executeQuery, etc.
+            // RuntimeExceptions from DBUtil.getConnection() will propagate out of this method
+            // unless also caught here.
+            // For robustness, let's also catch RuntimeException here and rethrow or handle.
+            // However, the plan was to handle it in doGet.
+            e.printStackTrace(); // Log this specific SQL error
+            // Optionally, rethrow as a custom application exception or a new RuntimeException
+            // throw new RuntimeException("SQL error during book retrieval: " + e.getMessage(), e);
+        }
+        // RuntimeException from DBUtil.getConnection() will bypass the above SQLException catch.
+        // To make sure it's handled before finally, it should be caught here or in doGet.
+        // The current structure has it handled in doGet.
+        finally {
             DBUtil.close(conn, pstmt, rs);
         }
         

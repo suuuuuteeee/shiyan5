@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网上书店后台管理系统</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        header {
+            background-color: #003366;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .content {
+            display: flex;
+        }
+        .sidebar {
+            width: 200px;
+            background-color: #f5f5f5;
+            padding: 10px 0;
+        }
+        .menu-title {
+            padding: 10px;
+            background-color: #e0e0e0;
+            font-weight: bold;
+            text-align: center;
+        }
+        .menu {
+            list-style: none;
+            padding: 0;
+        }
+        .menu li {
+            border-bottom: 1px solid #ddd;
+        }
+        .menu a {
+            display: block;
+            padding: 10px 15px;
+            color: #333;
+            text-decoration: none;
+        }
+        .main-content {
+            flex: 1;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: center;
+        }
+        table th {
+            background-color: #f0f0f0;
+        }
+        table tr:nth-child(even) {
+            background-color: cornflowerblue;
+        }
+        button {
+            padding: 5px 10px;
+            background-color: green;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+    <!-- 引入 Vue.js 和 Axios -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>网上游戏后台管理系统</h1>
+        <div>开始游戏</div>
+    </header>
+    
+    <div class="content">
+        <div class="sidebar">
+            <div class="menu-title">功能菜单导航</div>
+            <ul class="menu">
+                <li><a href="#">书籍信息管理</a></li>
+                <li><a href="#">其它模块管理</a></li>
+                <li><a href="#">其它模块管理</a></li>
+                <li><a href="#">其它模块管理</a></li>
+                <li><a href="#">其它模块管理</a></li>
+                <li><a href="#">其它模块管理</a></li>
+                <li><a href="#">其它模块管理</a></li>
+            </ul>
+        </div>
+        
+        <div class="main-content" id="app">
+            <div class="action-buttons">
+                <a href="add-book.html"><button>添加游戏</button></a>
+            </div>
+            
+            <div v-if="loading" class="loading">加载中...</div>
+            <div v-if="error" class="error">{{ error }}</div>
+            
+            <table id="bookTable" v-if="!loading && !error">
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>名称</th>
+                        <th>作者</th>
+                        <th>出版社</th>
+                        <th>类别</th>
+                        <th>单价</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="bookList">
+                    <tr v-for="(book, index) in books" :key="book.id">
+                        <td>{{ book.bookId }}</td>
+                        <td>{{ book.name }}</td>
+                        <td>{{ book.author }}</td>
+                        <td>{{ book.publisherName }}</td>
+                        <td>新书</td>
+                        <td>{{ book.price }}</td>
+                        <td>
+                            <button @click="editBook(book.id)">编辑</button>
+                            <button @click="deleteBook(book.id)">删除</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 创建 Vue 实例
+        new Vue({
+            el: '#app',
+            data: {
+                books: [],
+                loading: true,
+                error: null
+            },
+            mounted() {
+                // 页面加载时获取书籍数据
+                this.fetchBooks();
+            },
+            methods: {
+                // 获取书籍数据
+                fetchBooks() {
+                    this.loading = true;
+                    this.error = null;
+                    
+                    // 使用 Axios 发送 AJAX 请求
+                    axios.get('books')
+                        .then(response => {
+                            // 请求成功，更新数据
+                            if (response.data && response.data.status === 'success') {
+                                this.books = response.data.data;
+                            } else {
+                                this.error = '获取数据失败';
+                            }
+                            this.loading = false;
+                        })
+                        .catch(error => {
+                            // 请求失败，显示错误信息
+                            console.error('Error fetching books:', error);
+                            this.error = '获取数据失败: ' + error.message;
+                            this.loading = false;
+                            
+                            // 如果 API 不可用，使用本地数据（仅用于演示）
+                            this.useLocalData();
+                        });
+                },
+                // 使用本地数据（当 API 不可用时的备选方案）
+                useLocalData() {
+                    this.books = [
+                        { id: 1, bookId: '001', name: 'Web应用系统开发', author: '范月华', publisherName: '清华大学出版社', price: 28 },
+                        { id: 2, bookId: '002', name: 'CS2系统开发', author: 'V社', publisherName: '完美出版社', price: 10000 },
+                        { id: 3, bookId: '003', name: '赛博朋克2077', author: '波兰驴', publisherName: 'steam出版社', price: 168 },
+                        { id: 4, bookId: '004', name: '荒野大镖客', author: 'R*', publisherName: 'R*出版社', price: 92 },
+                        { id: 5, bookId: '005', name: '艾尔登法环', author: '宫崎英高', publisherName: '南宫出版社', price: 178 },
+                        { id: 6, bookId: '006', name: '黑神话悟空', author: '冯冀', publisherName: '游戏科学出版社', price: 268 }
+                    ];
+                    this.error = null;
+                    this.loading = false;
+                },
+                // 编辑书籍
+                editBook(id) {
+                    alert('编辑功能待实现，书籍ID: ' + id);
+                },
+                // 删除书籍
+                deleteBook(id) {
+                    alert('删除功能待实现，书籍ID: ' + id);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
